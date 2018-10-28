@@ -35,8 +35,8 @@
 }
 
 \title{Android Summary}
-\author{Lucas Waelti }
-\date{October 2018}
+\author{Lucas Waelti}
+\date{\today}
 
 \begin{document}
 
@@ -44,26 +44,7 @@
 \tableofcontents
 \newpage
 
-\begin{comment}
-Here is some source code:
-\begin{lstlisting}
-// Hello.java
-import javax.swing.JApplet;
-import java.awt.Graphics;
 
-public class Hello extends JApplet {
-    public void paintComponent(Graphics g) {
-        g.drawString("Hello, world!", 65, 95);
-    }
-    int a = 10;
-}
-\end{lstlisting}
-
-That's it folks!
-\begin{verbatim}
-Or use verbatim to write some pseudocode!
-\end{verbatim}
-\end{comment}
 
 \section{Printing Statements to Logcat}
 \lstset{language = Java}
@@ -281,6 +262,19 @@ private void copyImage(Uri uriInput, File fileOutput) throws IOException {
     }
 \end{lstlisting}
 
+
+\section{Convert image from a View into raw bytes for upload}
+\label{section:image to raw bytes}
+The transformation can be done as follows, \textbf{data} is our output: 
+\lstset{language = Java}
+\begin{lstlisting}
+BitmapDrawable bitmapDrawable = (BitmapDrawable) ((ImageView) findViewById(R.id.userImage)).getDrawable();
+
+Bitmap bitmap = bitmapDrawable.getBitmap();
+ByteArrayOutputStream baos = new ByteArrayOutputStream();
+bitmap.compress(Bitmap.CompressFormat.JPEG, 90, baos);
+byte[] data = baos.toByteArray();
+\end{lstlisting}
 
 
 \section{Android Wear}
@@ -655,5 +649,181 @@ public boolean onOptionsItemSelected(MenuItem item) {
     \end{lstlisting}
 \end{enumerate}
 
+
+\section{Toasts}
+A toast can be displayed by calling the line:
+\lstset{language = Java}
+\begin{lstlisting}
+Toast.makeText(CurrentActivity.this, "String to display", Toast.LENGTH_SHORT).show();
+// or LENGTH_LONG
+\end{lstlisting}
+
+
+
+\section{Firebase}
+To setup anything using Firebase, go to Tools $\rightarrow$ Firebase and select whatever you need to activate. The gradle files need to be updated in order to embed the desired functionalities. 
+
+The dependencies of the gradle files will be updated automatically. Errors may occur though. The added packages are located in the \textbf{dependencies} section of each gradle files. 
+Make sure first the following line in the gradle main file indicates the last version of the package:
+\lstset{language = XML}
+\begin{lstlisting}
+classpath 'com.google.gms:google-services:4.1.0'
+\end{lstlisting}
+
+\subsection{Add Internet permission}
+In the Manifest.xml file:
+\lstset{language = XML}
+\begin{lstlisting}
+<uses-permission android:name="android.permission.INTERNET"/>
+\end{lstlisting}
+
+\subsection{Write to Firebase Realtime Database}
+\subsubsection{Create fields in the database}
+In the class that interacts with the database, add following declarations: 
+\lstset{language = Java}
+\begin{lstlisting}
+// Get instance of the database
+private static final FirebaseDatabase database = FirebaseDatabase.getInstance();
+// Create a new field in database
+private static final DatabaseReference profileGetRef = database.getReference("field_name");
+// Create an unique key under "field_name" that will then contain infos 
+private static final DatabaseReference profileRef = profileGetRef.push();
+\end{lstlisting}
+
+\subsubsection{Uploading data to database}
+We take the example of the upload of a profile. In the class that interacts with the database:
+\lstset{language = Java}
+\begin{lstlisting}
+private void addDataToFirebaseDB() {
+	profileRef.runTransaction(new Transaction.Handler() {
+		@NonNull		
+		@Override
+		public Transaction.Result doTransaction(@NonNull MutableData mutableData){
+			mutableData.child("username").setValue(userProfile.username);
+			mutableData.child("password").setValue(userProfile.password);
+			mutableData.child("height").setValue(userProfile.height_cm);
+			mutableData.child("weight").setValue(userProfile.weight_kg);
+			return Transaction.success(mutableData);
+		}
+		@Override
+		public void onComplete(@Nullable DatabaseError databaseError, boolean b, @Nullable DataSnapshot dataSnapshot) {} 
+	});
+}
+\end{lstlisting}
+Note: As the code becomes hard to read, we can refactor the \textbf{Transaction.Handler()\{\}} into its own function declaration, renaming it for instance \textbf{ProfileDataUploadHandler}, so that the code above becomes:
+\lstset{language = Java}
+\begin{lstlisting}
+private void addProfileToFirebaseDB() {
+	profileRef.runTransaction(new ProfileDataUploadHandler());
+}
+\end{lstlisting}
+
+\subsection{Upload data/image to Firebase Storage}
+Get reference to the right field in the storage:
+\lstset{language = Java}
+\begin{lstlisting}
+StorageReference storageRef = FirebaseStorage.getInstance().getReference();
+StorageReference photoRef = storageRef.child("photos").child(profileRef.getKey() + ".jpg");
+\end{lstlisting}
+
+Upload the data to the storage(Check the section \ref{section:image to raw bytes} for image conversion into raw bytes):
+\lstset{language = Java}
+\begin{lstlisting}
+UploadTask uploadTask = photoRef.putBytes(data);
+
+uploadTask.addOnFailureListener(new OnFailureListener() {
+	@Override
+	public void onFailure(@NonNull Exception exception) {
+		// Handle unsuccessful uploads
+	}
+}).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+	@Override
+	public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+		// Handle successful uploads
+	}
+});
+\end{lstlisting}
+Note: Again, the \textbf{OnSuccessListener$<>$} can be refactored into its own function as a lot of code might be added here! Rename it for instance \textbf{PhotoUploadSuccessListener} for more clarity. 
+
+\subsection{Retrieve URL from data successfully uploaded to a storage for later usage}
+Let's implement the \textbf{OnSuccessListener$<>$} from previous section to get its URL, so that the image can be found again!
+\lstset{language = Java}
+\begin{lstlisting}
+private class PhotoUploadSuccessListener implements OnSuccessListener<UploadTask.TaskSnapshot> {
+	@Override
+	public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+		Task<Uri> downloadUrl = taskSnapshot.getMetadata().getReference().getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+			@Override
+			public void onSuccess(final Uri uri) {
+				// Save the URL wherever it is useful
+				userProfile.photoPath = uri.toString();
+			}
+		});
+	}
+}
+\end{lstlisting}
+
+\subsection{Read data from Firebase database}
+Go through a section of the database. For example, finding a given user:
+\lstset{language = Java}
+\begin{lstlisting}
+final FirebaseDatabase database = FirebaseDatabase.getInstance();
+final DatabaseReference profileRef = database.getReference("profiles");
+
+final String usernameInput = "The_user_name";
+final String passwordInput = "His_pathword";
+
+String userID = "";
+
+profileRef.addValueEventListener(new ValueEventListener() {
+	@Override
+	public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+		boolean notMember = true;
+		for (final DataSnapshot user : dataSnapshot.getChildren()) {
+			String usernameDatabase = user.child("username").getValue(String.class);
+			String passwordDatabase = user.child("password").getValue(String.class);
+			if (usernameInput.equals(usernameDatabase) && passwordInput.equals(passwordDatabase)) {
+				userID = user.getKey();
+				notMember = false;
+				break;
+			}
+		}
+		if (notMember) {
+			// Display error of message, user not known
+		} else {
+			Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+			intent.putExtra(MyProfileFragment.USER_ID, userID);
+			startActivity(intent);
+		}
+	}
+	
+	@Override
+	public void onCancelled(@NonNull DatabaseError databaseError) {
+	}
+});
+\end{lstlisting}
+
+\subsection{Read from Firebase Storage}
+Download an image from the database:
+\lstset{language = Java}
+\begin{lstlisting}
+private void setUserImageAndProfileInfo() {
+	// Reference to an image file in Firebase Storage
+	StorageReference storageRef = FirebaseStorage.getInstance().getReferenceFromUrl(userProfile.photoPath);
+	storageRef.getBytes(Long.MAX_VALUE).addOnSuccessListener(new OnSuccessListener<byte[]>() {
+		@Override
+		public void onSuccess(byte[] bytes) {
+			if (isAdded()) {
+				final InputStream imageStream;
+				final Bitmap selectedImage = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+				
+				// Add the image to the Activity display for instance:
+				ImageView imageView = fragmentView.findViewById(R.id.userImage);
+				imageView.setImageBitmap(selectedImage);
+			}
+		}
+	});
+}
+\end{lstlisting}
 
 \end{document}
