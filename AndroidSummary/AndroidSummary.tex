@@ -1,0 +1,659 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{fullpage}
+\usepackage{comment}
+\usepackage{hyperref}
+
+% Define presets for code highlighting
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{stringgreen}{rgb}{0,0.7,0}
+\definecolor{keywordorange}{rgb}{0.8,0.4,0}
+\definecolor{commentgray}{rgb}{0.6,0.6,0.6}
+\definecolor{numberblue}{rgb}{0,0,0.6}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=Java,
+  backgroundcolor=\color{white}, 
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{numberblue},
+  keywordstyle=\color{keywordorange},
+  commentstyle=\color{commentgray},
+  stringstyle=\color{stringgreen},
+  rulecolor=\color{black},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=4
+}
+
+\title{Android Summary}
+\author{Lucas Waelti }
+\date{October 2018}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\begin{comment}
+Here is some source code:
+\begin{lstlisting}
+// Hello.java
+import javax.swing.JApplet;
+import java.awt.Graphics;
+
+public class Hello extends JApplet {
+    public void paintComponent(Graphics g) {
+        g.drawString("Hello, world!", 65, 95);
+    }
+    int a = 10;
+}
+\end{lstlisting}
+
+That's it folks!
+\begin{verbatim}
+Or use verbatim to write some pseudocode!
+\end{verbatim}
+\end{comment}
+
+\section{Printing Statements to Logcat}
+\lstset{language = Java}
+\begin{lstlisting}
+private final String TAG = this.getClass().getName();
+// A function printing to logcat
+private void demo_logcat() {
+    Log.v(TAG, "Verbose");
+    Log.d(TAG, "Debug");
+    Log.i(TAG, "Information");
+    Log.w(TAG, "Warning");
+    Log.e(TAG, "Error");
+}
+\end{lstlisting}
+
+\section{Android User Interace}
+The UI is composed of 
+\begin{itemize}
+    \item View objects (widgets as TextView, ImageView, Button, ...)
+    \item ViewGroup objects (invisible view containers)
+\end{itemize}
+
+\subsection{LinearLayout}
+In an XML layout:
+\lstset{language = XML}
+\begin{lstlisting}
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" />
+\end{lstlisting}
+Using weihted spacing (Space example):
+\begin{lstlisting}
+<Space
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"/>
+\end{lstlisting}
+
+\subsection{ConstraintLayout}
+Example in the case of the watch:
+\lstset{language = XML}
+\begin{lstlisting}
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    tools:deviceIds="wear">
+</android.support.constraint.ConstraintLayout>
+\end{lstlisting}
+Use following constraints to place Views:
+\lstset{language = XML}
+\begin{lstlisting}
+app:layout_constraintBottom_toTopOf="@id/aViewId"
+app:layout_constraintLeft_toLeftOf="parent"
+app:layout_constraintRight_toRightOf="parent"
+app:layout_constraintTop_toTopOf="parent"
+\end{lstlisting}
+
+\subsection{Other ViewGroups}
+RelativeLayout, GridLayout, FrameLayout, TableLayout, TableRow.
+
+\section{Callbacks}
+\subsection{XML callbacks}
+From the XML layout file:
+\begin{lstlisting}
+<Button
+    ...
+    android:id="@+id/button"
+    android:onCLick="clickedButtonXMLCallback" />
+\end{lstlisting}
+Then add the callback to the corresponding activity Java code:
+\lstset{language = Java}
+\begin{lstlisting}
+public void clickedLoginButtonXmlCallback(View view) {
+    TextView textView = findViewById(R.id.atextviewid);
+    textView.setText("We used an XML callback!");
+}
+\end{lstlisting}
+\subsection{Java callbacks}
+More dynamic than XML callbacks. A Java callback is declared as follows in the Java source code:
+\lstset{language = Java}
+\begin{lstlisting}
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
+    
+    Button button = findViewById(R.id.RegisterButton);
+    button.setOnClickListener(new View.OnClickListener() {
+        
+        @Override // Override when instantiating a new OnClickListener
+        public void onClick(View view) {
+            TextView textView = findViewById(R.id.LoginMessage);
+            textView.setText("We used the Java callback!");
+        }
+    });
+}
+\end{lstlisting}
+
+
+\section{Activities and Intents}
+An activity can register for specifics events by declaring the \textbf{intent-filter} in the manifest as follows, with 
+\lstset{language = XML}
+\begin{lstlisting}
+<intent-filter>
+    <action android:name="android.intent.action.MAIN" />
+    <category android:name="android.intent.category.LAUNCHER" />
+</intent-filter>
+\end{lstlisting}
+
+\subsection{Starting an activity for a result (explicit)}
+In the Activity class:
+\lstset{language = Java}
+\begin{lstlisting}
+private static final int INTENT_ID = 1;
+
+Intent intent = 
+new Intent(EmittingActivity.this,ReceivingActivity.class);
+startActivityForResult(intent,INTENT_ID);
+\end{lstlisting}
+
+\subsection{Starting an activity for a result (implicit)}
+In a given function: 
+\lstset{language = Java}
+\begin{lstlisting}
+Intent intent = new Intent();
+intent.setType("image/*"); // Content is of type image/* 
+intent.setAction(Intent.ACTION_GET_CONTENT); // We want to get some content
+// createChooser(...) defines the action to perform
+startActivityForResult(Intent.createChooser(intent, "Select Picture"), INTENT_ID);
+\end{lstlisting}
+The Chooser allows to select the app that should be used to perform the action. 
+
+\subsection{Retrieve Activity Results}
+Override the onActivityResult(...) method from the class AppCompatActivity. 
+\lstset{language = Java}
+\begin{lstlisting}
+@Override
+protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+    super.onActivityResult(requestCode, resultCode, data);
+
+    if (requestCode == INTENT_ID && resultCode == RESULT_OK) {
+        Uri imageUri = data.getData(); // Get data from activity result
+        ...
+        // do some stuff...
+    }
+\end{lstlisting}
+
+\subsection{Sending back results (explicit)}
+Results can be sent back by doing the following: 
+\lstset{language = Java}
+\begin{lstlisting}
+Intent intent = new Intent(EmittingActivity.this,ReceivingActivity.class);
+intent.putExtra("someInfos", instanceWithInfos); // Add supplementary data by putting Extras
+setResult(AppCompatActivity.RESULT_OK, intent);
+finish();
+\end{lstlisting}
+
+
+\section{Convert Uri to Bitmap and store it (image)}
+When getting a result from an intent, the data is indicated as a Uri. This form is not permanent and has to be converted to be then stored if necessary. For instance, for an image: 
+\lstset{language = Java}
+\begin{lstlisting}
+private File imageFile;
+
+public void extractFromUri(Uri imageUri){
+    imageFile = new File(getExternalFilesDir(null), "profileImage");
+    
+    try {
+        copyImage(imageUri, imageFile);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+    final InputStream imageStream;
+    try {
+        imageStream = getContentResolver().openInputStream(Uri.fromFile(imageFile));
+        final Bitmap selectedImage = BitmapFactory.decodeStream(imageStream);
+        ImageView imageView = findViewById(R.id.userImage);
+        imageView.setImageBitmap(selectedImage);
+    } catch (FileNotFoundException e) {
+        e.printStackTrace();
+    }
+}
+\end{lstlisting}
+With the copyImage(...) function that converts to a bitmap:
+\lstset{language = Java}
+\begin{lstlisting}
+private void copyImage(Uri uriInput, File fileOutput) throws IOException {
+        InputStream in = null;
+        OutputStream out = null;
+
+        try {
+            in = getContentResolver().openInputStream(uriInput);
+            out = new FileOutputStream(fileOutput);
+            // Transfer bytes from in to out
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            in.close();
+            out.close();
+        }
+    }
+\end{lstlisting}
+
+
+
+\section{Android Wear}
+\subsection{Idle display}
+To use the watch, add following lines to the manifest above \textless application\textgreater :
+\lstset{language = XML}
+\begin{lstlisting}
+<uses-feature android:name="android.hardware.type.watch" />
+\end{lstlisting}
+
+Important to reduce energy consumption. In the activity java code that implements the watch, create following methods: 
+\lstset{language = Java}
+\begin{lstlisting}
+public class MainActivity extends WearableActivity {
+    private TextView mTextView;
+    private ConstraintLayout mLayout;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        mTextView = (TextView) findViewById(R.id.textView);
+        mTextView.setText("Hello Round World!");
+        mLayout = findViewById(R.id.container);
+        // Enables Always-on
+        setAmbientEnabled();
+    }
+    @Override
+    public void onEnterAmbient(Bundle ambientDetails) {
+        super.onEnterAmbient(ambientDetails);
+        updateDisplay();
+    }
+    @Override
+    public void onExitAmbient() {
+        super.onExitAmbient();
+        updateDisplay();
+    }
+    private void updateDisplay() {
+        if (isAmbient()) {
+            mLayout.setBackgroundColor(getResources().getColor(android.R.color.black,
+            getTheme()));
+        } else {
+            mLayout.setBackgroundColor(getResources().getColor(android.R.color.white,
+            getTheme()));
+        }
+    }
+}
+\end{lstlisting}
+Also make sure the manifest has the following permission:
+\lstset{language = XML}
+\begin{lstlisting}
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+\end{lstlisting}
+
+\subsection{Interfacing with Android Wear}
+This WearService is relying on constants generated at build time to prevent typing mistakes. The project’s build.gradle files must be modified:
+\lstset{language = Java}
+\begin{lstlisting}
+allprojects {
+    repositories {
+        ...
+    }
+    // Constants defined for all modules, to avoid typing mistakes
+    // We use it for communication using the Wear API
+    // It is a key-value mapping, auto-prefixed with "W_" for convenience
+    project.ext {
+        constants = [
+            path_start_activity : "/START_ACTIVITY",
+            path_acknowledge : "/ACKNOWLEDGE",
+            example_path_asset : "/ASSET",
+            example_path_text : "/TEXT",
+            example_path_datamap : "/DATAMAP",
+            mainactivity : "MainActivity",
+            // Add all other required key/value paires required for the application below
+            a_key : "a_value",
+            some_other_key : "some_other_value",
+        ]
+    }
+}
+\end{lstlisting}
+To make both mobile and wear modules aware of this, both their gradle files must be edited too: 
+\lstset{language = Java}
+\begin{lstlisting}
+android {
+    ...
+    buildTypes {
+            ...
+        buildTypes.each {
+            project.ext.constants.each {
+        // - String constants used in Java as `BuildConfig.W_a_key`
+        // - Resources are used as usual:
+        // - in Java as:
+        // `[getApplicationContext().]getString(R.string.W_a_key)`
+        // - in XML as:
+        // `@string/W_a_key`
+                k, v ->
+                    it.buildConfigField 'String', "W_${k}", "\"${v}\""
+                    it.resValue 'string', k, v
+            }
+        }
+    }
+}
+\end{lstlisting}
+The manifest needs as well some editing to register the service for both mobile and wear modules: 
+\lstset{language = Java}
+\begin{lstlisting}
+<service android:name=".WearService">
+    <intent-filter>
+        <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+        <data
+            android:host="*"
+            android:pathPrefix=""
+            android:scheme="wear" />
+    </intent-filter>
+
+    <intent-filter>
+        <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+        <data
+            android:host="*"
+            android:pathPrefix=""
+            android:scheme="wear" />
+    </intent-filter>
+</service>
+\end{lstlisting}
+
+\subsection{Using the Wear Service}
+The service uses two facets of the Wear API:
+\begin{itemize}
+    \item Message API, a one-way communication mechanism that’s good for remote procedure calls and message passing. 
+    
+    \item Data API, which synchronizes between all connected devices (nodes) the data. The 2 kinds of data are:
+        \begin{itemize}
+            \item \textbf{DataMap} (corresponds to the \textbf{Bundle} object sent between Intents) is an object which stores key-value associations. It rejects any type that cannot be transfered through the Wear API. 
+            
+            \item \textbf{Asset} (designed to contain \underline{binary} data). In the service, we use it to serialize bitmap (image) data by compressing it as a PNG file, and creating the Asset from the raw bytes. Reading back the data is the same process in the other way: read and decode the bytes from the Asset as a PNG file to get the Bitmap object.
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{Four functions to interact with the WearService}
+\lstset{language = Java}
+\begin{lstlisting}
+public void sendStart(View view) {
+    Intent intent = new Intent(this, WearService.class);
+    intent.setAction(WearService.ACTION_SEND.STARTACTIVITY.name());
+    intent.putExtra(WearService.ACTIVITY_TO_START, BuildConfig.W_mainactivity);
+    startService(intent);
+}
+
+public void sendMessage(View view) {
+    Intent intent = new Intent(this, WearService.class);
+    intent.setAction(WearService.ACTION_SEND.MESSAGE.name());
+    intent.putExtra(WearService.MESSAGE, "Messaging other device!");
+    intent.putExtra(WearService.PATH, BuildConfig.W_example_path_text);
+    startService(intent);
+}
+
+public void sendDatamap(View view) {
+    int some_value = 420;
+    ArrayList<Integer> arrayList = new ArrayList<>();
+    Collections.addAll(arrayList, 105, 107, 109, 1010);
+    Intent intent = new Intent(this, WearService.class);
+    intent.setAction(WearService.ACTION_SEND.EXAMPLE_DATAMAP.name());
+    intent.putExtra(WearService.DATAMAP_INT, some_value);
+    intent.putExtra(WearService.DATAMAP_INT_ARRAYLIST, arrayList);
+    startService(intent);
+}
+
+public void sendBitmap(View view) {
+    // Get bitmap data (can come from elsewhere) and
+    // convert it to a rescaled asset
+    Bitmap bmp = BitmapFactory.decodeResource(
+    getResources(), R.drawable.wikipedia_logo);
+    Asset asset = WearService.createAssetFromBitmap(bmp);
+    Intent intent = new Intent(this, WearService.class);
+    intent.setAction(WearService.ACTION_SEND.EXAMPLE_ASSET.name());
+    intent.putExtra(WearService.IMAGE, asset);
+    startService(intent);
+}
+\end{lstlisting}
+
+
+
+
+
+
+
+\section{Fragments and Menus}
+Fragments are behaviours or portions of user interface in an Activity. A Fragment has its own layout and it lives in a ViewGroup inside the Activity’s view hierarchy. There are 2 ways of adding a fragment: 
+\begin{itemize}
+    \item Declaring it inside the activity’s layout file, as a fragment element, specifying the properties as if it were a view. The android:name specifies the Fragment class to instantiate.
+    \item Programmatically, adding it through the \textbf{FragmentManager}, which manages fragments, such as adding or removing them from the activity.
+\end{itemize}
+
+\subsection{Adding Fragments}
+\begin{enumerate}
+    \item Add a \textbf{Fragment} class to the package (New $\rightarrow$ Fragment(Blank)) and give a name to the \textbf{fragment's layout}.
+    
+    \item Edit the \textbf{onCreateView}(...) method of the Fragment that will inflate it: 
+    \lstset{language = Java}
+    \begin{lstlisting}
+private View fragmentView;
+
+@Override
+public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    // Inflate the layout for this fragment
+    fragmentView = inflater.inflate(R.layout.my_fragment, container, false);
+    
+    // Do some stuff...
+    
+    return fragmentView;
+}
+    \end{lstlisting}
+    
+    \item The activity that constains the Fragment has to implement the interface \textbf{OnFragmentInteractionListener} by writing:
+    \lstset{language = Java}
+    \begin{lstlisting}
+public class ActivityWithFragment implements MyFragmentClass.OnFragmentInteractionListener{
+    ...
+    
+    @Override
+    public void onFragmentInteraction(Uri uri) {
+
+    }
+}
+    \end{lstlisting}
+    Add as many implementation as there are Fragment classes that the activity should have. Generate the method \textbf{onFragmentInteraction}(...) as required by the interface. 
+    
+    \item Create a new Java class that extends a \textbf{FragmentStatePagerAdapter} (this is an implementation of a \textbf{PagerAdapter}). This will allow to manage an \emph{arbitrary} number of Fragments. Implement following methods:
+    \lstset{language = Java}
+    \begin{lstlisting}
+class SectionsStatePagerAdapter extends FragmentStatePagerAdapter {
+
+    private final String TAG = this.getClass().getSimpleName();
+
+    // List of fragments
+    private final List<Fragment> mFragmentList = new ArrayList<>();
+    // List of fragment titles
+    private final List<String> mFragmentTitleList = new ArrayList<>();
+
+    public SectionsStatePagerAdapter(FragmentManager fm) {
+        super(fm);
+    }
+    @Override
+    public Fragment getItem(int i) {
+        return mFragmentList.get(i);
+    }
+    @Override
+    public int getCount() {
+        return mFragmentList.size();
+    }
+    public void addFragment(Fragment fragment, String title) {
+        mFragmentList.add(fragment);
+        mFragmentTitleList.add(title);
+    }
+    public int getPositionByTitle(String title) {
+        return mFragmentTitleList.indexOf(title);
+    }
+    @Nullable
+    @Override
+    public CharSequence getPageTitle(int position) {
+        return mFragmentTitleList.get(position);
+    }
+}
+    \end{lstlisting}
+    
+    \item Setup the layout of the Activity containing the Fragments: 
+    \lstset{language = XML}
+    \begin{lstlisting}
+<android.support.v4.view.ViewPager
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mainViewPager"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    
+    <android.support.v4.view.PagerTabStrip
+        android:id="@+id/pagerTabStrip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#20B2AA"
+        android:textColor = "#fff"
+        android:paddingTop="15dp"
+        android:paddingBottom="15dp" />
+        
+</android.support.v4.view.ViewPager>
+    \end{lstlisting}
+    \textbf{PagerTabStrip} adds the title tabs under the action bar and enables to swipe through the tabs. 
+
+    \item Add the Fragments to the \textbf{SectionsStatePagerAdapter} and set the \textbf{ViewPager}. This is done in the \textbf{onCreate}(...) method of the activity containing the Fragments: 
+    \lstset{language = Java}
+    \begin{lstlisting}
+public class MyActivityWithFragments extends AppCompatActivity implements MFragment.OnFragmentInteractionListener{
+    private final String TAG = this.getClass().getSimpleName();
+    
+    private MyFragment myFragment;
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.my_activity_with_fragments);
+        
+        mSectionStatePagerAdapter = new SectionsStatePagerAdapter(getSupportFragmentManager());
+        
+        myFragment = new MyFragment();
+        
+        ViewPager mViewPager = findViewById(R.id.mainViewPager);
+        setUpViewPager(mViewPager);
+        
+        // Set MyFragment as default tab once started the activity
+        mViewPager.setCurrentItem(mSectionStatePagerAdapter.getPositionByTitle(
+        getString(R.string.my_fragment_name)));
+    }
+    private void setUpViewPager(ViewPager mViewPager) {
+        mSectionStatePagerAdapter.addFragment(myFragment, getString(R.string.my_fragment_name));
+    }
+}
+    \end{lstlisting}
+\end{enumerate}
+
+
+\subsection{Adding Action Bar Menus}
+A menu lets display buttons with important functions on top of the application display. To create a menu, do: 
+\begin{enumerate}
+    \item Add a res/menu folder (New $\rightarrow$ Android Resource Directory)
+    \item Add a new XML menu file (New $\rightarrow$ Menu Resource File)
+    \item Edit the XML file:
+        \lstset{language = XML}
+    \begin{lstlisting}
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_edit"
+        android:icon="@android:drawable/ic_menu_edit"
+        android:title="@string/edit_data"
+        app:showAsAction="ifRoom" />
+</menu>
+    \end{lstlisting}
+    The option app:showAsAction="ifRoom" allows to always show the menu item as a button in the app action bar.
+    
+    \item In the \textbf{onCreate}(...) method of the \textbf{Fragment} that needs the menu, add the line:
+    \lstset{language = Java}
+    \begin{lstlisting}
+setHasOptionsMenu(true);
+    \end{lstlisting}
+    
+    \item In the same file (\textbf{Fragment} class), add the method:
+    \lstset{language = Java}
+    \begin{lstlisting}
+@Override
+public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+    super.onCreateOptionsMenu(menu, inflater);
+    inflater.inflate(R.menu.my_menu, menu);
+}
+    \end{lstlisting}
+    
+\end{enumerate}
+
+\subsection{Reacting to menu interactions}
+\begin{enumerate}
+    \item In the Fragment that has the menu, override the method \textbf{onOptionsItemSelected}(...) to react when a button of the menu is pushed:
+    \lstset{language = Java}
+    \begin{lstlisting}
+@Override
+public boolean onOptionsItemSelected(MenuItem item) {
+    switch (item.getItemId()) {
+        case R.id.action_edit:
+            // do stuff...
+            break;
+        }
+    return super.onOptionsItemSelected(item);
+}
+    \end{lstlisting}
+\end{enumerate}
+
+
+\end{document}
