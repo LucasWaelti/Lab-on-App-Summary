@@ -11,3 +11,6 @@ It would be good to add the pdf along with the LaTeX code that generated it to m
 
 ## How to upload file
 Just drag and drop the source code and the pdf corresponding to it in the correct folder (`AndroidSummary`). 
+
+## Want a new feature? Open an Issue!
+If you see something missing but don't have time to add it yourself, add an issue and let someone else take care of it. 
