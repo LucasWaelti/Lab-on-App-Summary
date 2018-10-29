@@ -211,6 +211,14 @@ setResult(AppCompatActivity.RESULT_OK, intent);
 finish();
 \end{lstlisting}
 
+\subsection{Get the data of an Intent}
+Retreive a String for instance (from a Fragment): 
+\lstset{language = Java}
+\begin{lstlisting}
+Intent intent = getActivity().getIntent();
+String userID = intent.getExtras().getString(USER_ID);
+\end{lstlisting}
+
 
 \section{Convert Uri to Bitmap and store it (image)}
 When getting a result from an intent, the data is indicated as a Uri. This form is not permanent and has to be converted to be then stored if necessary. For instance, for an image: 
