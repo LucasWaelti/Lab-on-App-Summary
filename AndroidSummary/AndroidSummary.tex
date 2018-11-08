@@ -834,4 +834,286 @@ private void setUserImageAndProfileInfo() {
 }
 \end{lstlisting}
 
+\subsection{ListViews} 
+%The end of this chapter is not related to Firebase directly, so maybe should we move this somewhere else?
+
+When we implemented the listview in the lab, we wanted to display a list of our objects class (called "Recording"). There is a provided class in Android Studio called "ArrayAdapter", which is supposed to manage the displaying of an array of objects, but it can't manage objects of unknown class, so we had to do code own adapter (a private class inside our fragment or activity):
+\begin{lstlisting}
+private class RecordingAdapter extends ArrayAdapter<Recording> {
+    private int row_layout;
+    RecordingAdapter(FragmentActivity activity, int row_layout) {
+        super(activity, row_layout);
+        this.row_layout = row_layout;
+    }
+    @NonNull
+    @Override
+    public View getView(int position, @Nullable View convertView,
+    @NonNull ViewGroup parent) {
+        //Reference to the row View
+        View row = convertView;
+        if (row == null) {
+            //Inflate it from layout
+            row = LayoutInflater.from(getContext()).inflate(row_layout,
+            parent, false);
+        }
+        SimpleDateFormat formatter = new SimpleDateFormat(”dd/MM/yyyy ” +
+            ”hh:mm:ss”, Locale.getDefault());
+        ((TextView) row.findViewById(R.id.exerciseType)).setText(getItem
+            (position).exerciseType);
+        ((TextView) row.findViewById(R.id.exerciseDateTime)).setText
+            (formatter.format(new Date(getItem(position)
+                .exerciseDateTime)));
+        ((TextView) row.findViewById(R.id.exerciseDevice)).setText
+            (getString(R.string.smartwatch_switch_value, getItem
+                (position).exerciseSmartWatch ? ”yes” : ”no”));
+        ((TextView) row.findViewById(R.id.exerciseDevice2)).setText
+            (getString(R.string.hr_belt_switch_value, getItem
+                (position).exerciseHRbelt ? ”yes” : ”no”));
+        return row;
+    }
+}
+\end{lstlisting}
+In the overriden getView() method we are setting the view of the row layout with the data we want. In our case, the data is coming from the recording objects, in particular from its fields.
+
+After implementing this class, we need to set this adapter as the official adapter for our ListView. We do this in the
+onCreateView(...) of MyHistoryFragment by adding the following code:
+\begin{lstlisting}
+listView = fragmentView.findViewById(R.id.myHistoryList);
+adapter = new RecordingAdapter(getActivity(), R.layout
+    .row_myhistory_layout);
+listView.setAdapter(adapter);
+\end{lstlisting}
+
+\subsection{Identified listeners (vs anonymous listeners)}
+Until now, we were getting data from Firebase by using an anonymous implementation of ValueEventListener, which does not have a name and lets you to declare and instantiate a class at the same time and use it only once. This is how it looked:
+\begin{lstlisting}
+someRef.addValueEventListener(new ValueEventListener() {
+    // Some methods to override
+    // Some more code as a normal class would be implemented
+});
+\end{lstlisting}
+When we want to have add a listener related to a certain class (recordings in the lab), and active in only one fragment (recordings history), we may want to do add this listener as an inner class as we did for the ArrayAdapter: 
+\begin{lstlisting}
+private class MyFirebaseRecordingListener implements ValueEventListener {
+    @Override
+    public void onDataChange(DataSnapshot dataSnapshot) {
+        adapter.clear();
+        for (final DataSnapshot rec : dataSnapshot.getChildren()) {
+            final Recording recording = new Recording();
+            recording.exerciseType = rec.child(”exercise_type”)
+                .getValue().toString();
+            recording.exerciseDateTime = Long.parseLong(rec.child
+                (”datetime”).getValue().toString());
+            recording.exerciseSmartWatch = Boolean.parseBoolean(rec
+                .child(”switch_watch”).getValue().toString());
+            recording.exerciseHRbelt = Boolean.parseBoolean(rec
+                .child(”switch_hr_belt”).getValue().toString());
+            adapter.add(recording);
+        }
+    }
+    @Override
+    public void onCancelled(DatabaseError databaseError) {
+        Log.v(TAG, databaseError.toString());
+    }
+}
+\end{lstlisting}
+Then we can register and unregister the listener on onPause() and on onResume() of the fragment. We do this because reading from an external source such as Firebase, might create problems if active fragments are trying to change UI elements while being detached because of a configuration change (tablet rotation for example, see Section 5):
+\begin{lstlisting}
+@Override
+public void onResume() {
+    super.onResume();
+    databaseRef = FirebaseDatabase.getInstance().getReference();
+    mFirebaseRecordingListener = new MyFirebaseRecordingListener();
+    databaseRef.child(”profiles”).child(idUser).child(”recordings”)
+        .addValueEventListener(mFirebaseRecordingListener);
+}
+@Override
+public void onPause() {
+    super.onPause();
+    databaseRef.child(”profiles”).child(idUser).child(”recordings”)
+        .removeEventListener(mFirebaseRecordingListener);
+}
+\end{lstlisting}
+\subsection{Handling configuration changes}
+When we change the orientation of the tablet, the activity is destroyed and recreated. This can lead to data losses (typically for images). To avoid this we have to save the data that can be lost in a "Bundle" object. We can save an image like this:
+\begin{lstlisting}
+@Override
+protected void onSaveInstanceState(Bundle outState) {
+    super.onSaveInstanceState(outState);
+    outState.putParcelable(”ImageUri”, savedImageUri);
+}
+\end{lstlisting}
+And we can retrieve the data like this:
+\begin{lstlisting}
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    ...
+    if (savedInstanceState != null) {
+        savedImageUri = savedInstanceState.getParcelable(”ImageUri”);
+        if (savedImageUri != null) {
+            // Put the image in the ImageView,
+            // as you did in onActivityResult(…)
+        }
+    }
+}
+\end{lstlisting}
+
+\section{Sensors}
+\subsection{Permissions}
+First we need to add some permissions in AndroidManifest.xml.
+
+To keep the watch awake while performing some processing:
+\begin{lstlisting}
+<uses-permission android:name = ”android.permission.WAKE_LOCK”/>
+\end{lstlisting}
+
+To allow access to data coming from sensors that measure properties of the user's body:
+\begin{lstlisting}
+<uses-permission android:name = ”android.permission.BODY_SENSORS”/>
+\end{lstlisting}
+And add this in the recording activity of the watch:
+\begin{lstlisting}
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+checkSelfPermission(”android.permission.BODY_SENSORS”) ==
+    PackageManager.PERMISSION_DENIED) {
+    requestPermissions(new String[]{”android.permission” +
+        ”.BODY_SENSORS”}, 0);
+    }
+\end{lstlisting}
+
+\subsection{Recording the HR}
+First, we need to launch the recording in the recording button callback:
+\begin{lstlisting}
+if (switchWatch.isChecked()) {
+    startRecordingOnWear();
+}
+\end{lstlisting}
+Then, somewhere else outside onCreate():
+\begin{lstlisting}
+private void startRecordingOnWear() {
+    Log.d(TAG, ”Entered smartwatch hr reading”);
+    Intent intentStartRec = new Intent(getActivity(),
+        WearService.class);
+    intentStartRec.setAction(WearService.ACTION_SEND
+        .STARTACTIVITY.name());
+    intentStartRec.putExtra(WearService
+        .ACTIVITY_TO_START, BuildConfig
+            .W_recordingactivity);
+    getActivity().startService(intentStartRec);
+}
+\end{lstlisting}
+Do not forget to add the "recordingactivity" key in the gradle of the project.
+For this key again, in the WearService of the wear module we add a case in the switch(data) in the
+onMessageReceived(...) method:
+\begin{lstlisting}
+case BuildConfig.W_recordingactivity:
+    Log.d(TAG, ”Start recording message received”);
+    startIntent = new Intent(this, RecordingActivity.class);
+    break;
+\end{lstlisting}
+Then, to save the recordings to Firebase, we add this at the end of the onClick callback of the newRecording button:
+\begin{lstlisting}
+Intent intentStartLive = new Intent(getActivity(), ExerciseLiveActivity.class);
+intentStartLive.putExtra(USER_ID, userID);
+intentStartLive.putExtra(RECORDIND_ID, recordingKeySaved);
+startActivity(intentStartLive);
+\end{lstlisting}
+%D'ailleurs c'est bizzare qu'il n'y a rien en commun avec un upload de datas habituelles sur Firebase, comme vu au paragraphe 10.2 . Ca vous semble normal? Quand doit on utilier l'un et quand l'autre?
+
+\subsection{Monitor data from sensor (on the watch)}
+First you have to extend WearableActivity and implement SensorEventListener. The second one is registered in the activity in onCreate():
+\begin{lstlisting}
+SensorManager sensorManager = (SensorManager) getSystemService
+    (MainActivity.SENSOR_SERVICE);
+Sensor hr_sensor = sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE);
+sensorManager.registerListener(this, hr_sensor, SensorManager.SENSOR_DELAY_UI);
+\end{lstlisting}
+Then we can write the heart rate in a TextView with the next overriden method:
+\begin{lstlisting}
+@Override
+public void onSensorChanged(SensorEvent event) {
+    TextView textViewHR = findViewById(R.id.hrSensor);
+    if (textViewHR != null)
+        textViewHR.setText(String.valueOf(event.values[0]));
+}
+\end{lstlisting}
+The event object contains information about the new sensor data, including the accuracy, the sensor that generated it, the timestamp of generation, and the new data.
+
+\subsection{Sending HR from watch to tablet}
+First add a key and a path in the Gradle:
+\begin{lstlisting}
+heart_rate_key : ”heart_rate_key”,
+heart_rate_path : ”/HEART_RATE_PATH”,
+\end{lstlisting}
+Then, in the onSensorChanged(), we start an Intent by passing the HR data as an extra:
+\begin{lstlisting}
+Intent intent = new Intent(RecordingActivity.this, WearService.class);
+intent.setAction(WearService.ACTION_SEND.HEART_RATE.name());
+intent.putExtra(WearService.DATAMAP_INT_HEART_RATE, heartRate);
+startService(intent);
+\end{lstlisting}
+Then we have to add a case in the switch of onStartCommand() of the WearService in the wear module:
+\begin{lstlisting}
+case HEART_RATE:
+    putDataMapRequest = PutDataMapRequest.create(BuildConfig
+        .W_heart_rate_key);
+    putDataMapRequest.getDataMap().putInt(BuildConfig
+        .W_heart_rate_key, intent.getIntExtra
+    (DATAMAP_INT_HEART_RATE, -1));
+    sendPutDataMapRequest(putDataMapRequest);
+    break;
+\end{lstlisting}
+In the mobile WearService, in the onDataChanged(...) method, we add a case to handle the HR data.
+\begin{lstlisting}
+case BuildConfig.W_heart_rate_path:
+    int heartRate = dataMapItem.getDataMap().getInt
+        (BuildConfig.W_heart_rate_key);
+    intent = new Intent(ExerciseLiveActivity
+        .ACTION_RECEIVE_HEART_RATE);
+    intent.putExtra(ExerciseLiveActivity.HEART_RATE,
+        heartRate);
+    LocalBroadcastManager.getInstance(this).sendBroadcast
+        (intent);
+    break;
+\end{lstlisting}
+
+\subsection{Showing data on the tablet}
+First, to get the intent extras in the activit'y onCreate(), to be able to access the specific branch:
+\begin{lstlisting}
+Intent intentFromRec = getIntent();
+userID = intentFromRec.getStringExtra(MyProfileFragment.USER_ID);
+recID = intentFromRec.getStringExtra(NewRecordingFragment.RECORDIND_ID);
+\end{lstlisting}
+We get the info about the exercise from Firebase. %Apparently
+In order to get the HR sensor data sent from the watch, we implement the LocalBroadcastManager with an IntentFilter specific to the HR we already defined (ACTION_RECEIVE_HEART_RATE, always remember to add these strings). The BroadcastReceiver for the HR data is registered in the onResume(...) and unregistered in the onPause(...).
+\begin{lstlisting}
+@Override
+protected void onResume() {
+    super.onResume();
+    //Get the HR data back from the watch
+    heartRateBroadcastReceiver = new HeartRateBroadcastReceiver();
+    LocalBroadcastManager.getInstance(this).registerReceiver
+        (heartRateBroadcastReceiver, new IntentFilter
+            (ACTION_RECEIVE_HEART_RATE));
+}
+@Override
+protected void onPause() {
+    super.onPause();
+    LocalBroadcastManager.getInstance(this).unregisterReceiver
+        (heartRateBroadcastReceiver);
+    }
+    
+private int heartRateWatch = 0;
+
+private class HeartRateBroadcastReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        //Show HR in a TextView
+        heartRateWatch = intent.getIntExtra(HEART_RATE, -1);
+        TextView hrTextView = findViewById(R.id.exerciseHRwatchLive);
+        hrTextView.setText(String.valueOf(heartRateWatch));
+    }
+}
+\end{lstlisting}
+
 \end{document}
