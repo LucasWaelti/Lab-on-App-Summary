@@ -1116,4 +1116,36 @@ private class HeartRateBroadcastReceiver extends BroadcastReceiver {
 }
 \end{lstlisting}
 
+\subsection{Live plot}
+First add the AndroidPlot library through the module's Settings panel (right click on the module (mobile, in our case), then 'Open Module Settings'), then in the 'Dependencies' tab, click on "+" to add another library, and search for 'androidplot'.
+
+To add the plot in the layout:
+\begin{lstlisting}
+<com.androidplot.xy.XYPlot
+    android:id=”@+id/HRplot”
+    style=”@style/APDefacto.Light”
+    android:layout_width=”fill_parent”
+    android:layout_height=”0dp”
+    android:layout_centerHorizontal=”true”
+    android:layout_marginTop=”56dp”
+    android:orientation=”horizontal”
+    app:layout_constraintBottom_toBottomOf=”parent”
+    app:layout_constraintHorizontal_bias=”0.0”
+    app:layout_constraintLeft_toLeftOf=”parent”
+    app:layout_constraintRight_toRightOf=”parent”
+    app:layout_constraintTop_toBottomOf=”@+id/gpsMap”
+    app:lineLabels=”left” />
+\end{lstlisting}
+Then, in onCreate() of the activity, we initiante the XYPlot:
+\begin{lstlisting}
+heartRatePlot = findViewById(R.id.HRplot);
+configurePlot();
+\end{lstlisting}
+Then we have to configure the plot (colors, styling, axis formatting) in a private method we call after initiating the XYPlot:
+\begin{lstlisting}
+
+\end{lstlisting}
+We are using here a String value 'heart_rate' which does not yet exist, so let’s add it in the res/values/strings.xml file, giving it the value Heart Rate (bpm). We also are using the integer constants 'MIN_HR', 'MAX_HR' and 'NUMBER_OF_POINTS' which we need to define in the class. We will give them the respective values 40, 200 and 50
+
+
 \end{document}
