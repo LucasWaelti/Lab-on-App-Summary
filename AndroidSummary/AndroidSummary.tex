@@ -856,8 +856,8 @@ private class RecordingAdapter extends ArrayAdapter<Recording> {
             row = LayoutInflater.from(getContext()).inflate(row_layout,
             parent, false);
         }
-        SimpleDateFormat formatter = new SimpleDateFormat(”dd/MM/yyyy ” +
-            ”hh:mm:ss”, Locale.getDefault());
+        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy " +
+            "hh:mm:ss", Locale.getDefault());
         ((TextView) row.findViewById(R.id.exerciseType)).setText(getItem
             (position).exerciseType);
         ((TextView) row.findViewById(R.id.exerciseDateTime)).setText
@@ -865,10 +865,10 @@ private class RecordingAdapter extends ArrayAdapter<Recording> {
                 .exerciseDateTime)));
         ((TextView) row.findViewById(R.id.exerciseDevice)).setText
             (getString(R.string.smartwatch_switch_value, getItem
-                (position).exerciseSmartWatch ? ”yes” : ”no”));
+                (position).exerciseSmartWatch ? "yes" : "no"));
         ((TextView) row.findViewById(R.id.exerciseDevice2)).setText
             (getString(R.string.hr_belt_switch_value, getItem
-                (position).exerciseHRbelt ? ”yes” : ”no”));
+                (position).exerciseHRbelt ? "yes" : "no"));
         return row;
     }
 }
@@ -900,14 +900,14 @@ private class MyFirebaseRecordingListener implements ValueEventListener {
         adapter.clear();
         for (final DataSnapshot rec : dataSnapshot.getChildren()) {
             final Recording recording = new Recording();
-            recording.exerciseType = rec.child(”exercise_type”)
+            recording.exerciseType = rec.child("exercise_type")
                 .getValue().toString();
             recording.exerciseDateTime = Long.parseLong(rec.child
-                (”datetime”).getValue().toString());
+                ("datetime").getValue().toString());
             recording.exerciseSmartWatch = Boolean.parseBoolean(rec
-                .child(”switch_watch”).getValue().toString());
+                .child("switch_watch").getValue().toString());
             recording.exerciseHRbelt = Boolean.parseBoolean(rec
-                .child(”switch_hr_belt”).getValue().toString());
+                .child("switch_hr_belt").getValue().toString());
             adapter.add(recording);
         }
     }
@@ -924,13 +924,13 @@ public void onResume() {
     super.onResume();
     databaseRef = FirebaseDatabase.getInstance().getReference();
     mFirebaseRecordingListener = new MyFirebaseRecordingListener();
-    databaseRef.child(”profiles”).child(idUser).child(”recordings”)
+    databaseRef.child("profiles").child(idUser).child("recordings")
         .addValueEventListener(mFirebaseRecordingListener);
 }
 @Override
 public void onPause() {
     super.onPause();
-    databaseRef.child(”profiles”).child(idUser).child(”recordings”)
+    databaseRef.child("profiles").child(idUser).child("recordings")
         .removeEventListener(mFirebaseRecordingListener);
 }
 \end{lstlisting}
@@ -940,7 +940,7 @@ When we change the orientation of the tablet, the activity is destroyed and recr
 @Override
 protected void onSaveInstanceState(Bundle outState) {
     super.onSaveInstanceState(outState);
-    outState.putParcelable(”ImageUri”, savedImageUri);
+    outState.putParcelable("ImageUri", savedImageUri);
 }
 \end{lstlisting}
 And we can retrieve the data like this:
@@ -949,10 +949,10 @@ And we can retrieve the data like this:
 protected void onCreate(Bundle savedInstanceState) {
     ...
     if (savedInstanceState != null) {
-        savedImageUri = savedInstanceState.getParcelable(”ImageUri”);
+        savedImageUri = savedInstanceState.getParcelable("ImageUri");
         if (savedImageUri != null) {
             // Put the image in the ImageView,
-            // as you did in onActivityResult(…)
+            // as you did in onActivityResult(...)
         }
     }
 }
@@ -964,20 +964,20 @@ First we need to add some permissions in AndroidManifest.xml.
 
 To keep the watch awake while performing some processing:
 \begin{lstlisting}
-<uses-permission android:name = ”android.permission.WAKE_LOCK”/>
+<uses-permission android:name = "android.permission.WAKE_LOCK"/>
 \end{lstlisting}
 
 To allow access to data coming from sensors that measure properties of the user's body:
 \begin{lstlisting}
-<uses-permission android:name = ”android.permission.BODY_SENSORS”/>
+<uses-permission android:name = "android.permission.BODY_SENSORS"/>
 \end{lstlisting}
 And add this in the recording activity of the watch:
 \begin{lstlisting}
 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-checkSelfPermission(”android.permission.BODY_SENSORS”) ==
+checkSelfPermission("android.permission.BODY_SENSORS") ==
     PackageManager.PERMISSION_DENIED) {
-    requestPermissions(new String[]{”android.permission” +
-        ”.BODY_SENSORS”}, 0);
+    requestPermissions(new String[]{"android.permission" +
+        ".BODY_SENSORS"}, 0);
     }
 \end{lstlisting}
 
@@ -991,7 +991,7 @@ if (switchWatch.isChecked()) {
 Then, somewhere else outside onCreate():
 \begin{lstlisting}
 private void startRecordingOnWear() {
-    Log.d(TAG, ”Entered smartwatch hr reading”);
+    Log.d(TAG, "Entered smartwatch hr reading");
     Intent intentStartRec = new Intent(getActivity(),
         WearService.class);
     intentStartRec.setAction(WearService.ACTION_SEND
@@ -1007,7 +1007,7 @@ For this key again, in the WearService of the wear module we add a case in the s
 onMessageReceived(...) method:
 \begin{lstlisting}
 case BuildConfig.W_recordingactivity:
-    Log.d(TAG, ”Start recording message received”);
+    Log.d(TAG, "Start recording message received");
     startIntent = new Intent(this, RecordingActivity.class);
     break;
 \end{lstlisting}
@@ -1042,8 +1042,8 @@ The event object contains information about the new sensor data, including the a
 \subsection{Sending HR from watch to tablet}
 First add a key and a path in the Gradle:
 \begin{lstlisting}
-heart_rate_key : ”heart_rate_key”,
-heart_rate_path : ”/HEART_RATE_PATH”,
+heart_rate_key : "heart_rate_key",
+heart_rate_path : "/HEART_RATE_PATH",
 \end{lstlisting}
 Then, in the onSensorChanged(), we start an Intent by passing the HR data as an extra:
 \begin{lstlisting}
@@ -1085,7 +1085,7 @@ userID = intentFromRec.getStringExtra(MyProfileFragment.USER_ID);
 recID = intentFromRec.getStringExtra(NewRecordingFragment.RECORDIND_ID);
 \end{lstlisting}
 We get the info about the exercise from Firebase. %Apparently
-In order to get the HR sensor data sent from the watch, we implement the LocalBroadcastManager with an IntentFilter specific to the HR we already defined (ACTION_RECEIVE_HEART_RATE, always remember to add these strings). The BroadcastReceiver for the HR data is registered in the onResume(...) and unregistered in the onPause(...).
+In order to get the HR sensor data sent from the watch, we implement the LocalBroadcastManager with an IntentFilter specific to the HR we already defined (ACTION\_RECEIVE\_HEART\_RATE, always remember to add these strings). The BroadcastReceiver for the HR data is registered in the onResume(...) and unregistered in the onPause(...).
 \begin{lstlisting}
 @Override
 protected void onResume() {
@@ -1122,19 +1122,19 @@ First add the AndroidPlot library through the module's Settings panel (right cli
 To add the plot in the layout:
 \begin{lstlisting}
 <com.androidplot.xy.XYPlot
-    android:id=”@+id/HRplot”
-    style=”@style/APDefacto.Light”
-    android:layout_width=”fill_parent”
-    android:layout_height=”0dp”
-    android:layout_centerHorizontal=”true”
-    android:layout_marginTop=”56dp”
-    android:orientation=”horizontal”
-    app:layout_constraintBottom_toBottomOf=”parent”
-    app:layout_constraintHorizontal_bias=”0.0”
-    app:layout_constraintLeft_toLeftOf=”parent”
-    app:layout_constraintRight_toRightOf=”parent”
-    app:layout_constraintTop_toBottomOf=”@+id/gpsMap”
-    app:lineLabels=”left” />
+    android:id="@+id/HRplot"
+    style="@style/APDefacto.Light"
+    android:layout_width="fill_parent"
+    android:layout_height="0dp"
+    android:layout_centerHorizontal="true"
+    android:layout_marginTop="56dp"
+    android:orientation="horizontal"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintHorizontal_bias="0.0"
+    app:layout_constraintLeft_toLeftOf="parent"
+    app:layout_constraintRight_toRightOf="parent"
+    app:layout_constraintTop_toBottomOf="@+id/gpsMap"
+    app:lineLabels="left" />
 \end{lstlisting}
 Then, in onCreate() of the activity, we initiante the XYPlot:
 \begin{lstlisting}
@@ -1145,7 +1145,7 @@ Then we have to configure the plot (colors, styling, axis formatting) in a priva
 \begin{lstlisting}
 
 \end{lstlisting}
-We are using here a String value 'heart_rate' which does not yet exist, so let’s add it in the res/values/strings.xml file, giving it the value Heart Rate (bpm). We also are using the integer constants 'MIN_HR', 'MAX_HR' and 'NUMBER_OF_POINTS' which we need to define in the class. We will give them the respective values 40, 200 and 50
+We are using here a String value "heart\_ rate " which does not yet exist, so let’s add it in the res/values/strings.xml file, giving it the value Heart Rate (bpm). We also are using the integer constants 'MIN\_HR', 'MAX\_HR' and 'NUMBER\_OF\_POINTS' which we need to define in the class. We will give them the respective values 40, 200 and 50
 
 
 \end{document}
