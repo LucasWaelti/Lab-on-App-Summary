@@ -35,7 +35,7 @@
 }
 
 \title{Android Summary}
-\author{Lucas Waelti}
+\author{Lucas Waelti, Maxim Pavliv}
 \date{\today}
 
 \begin{document}
@@ -760,7 +760,8 @@ Let's implement the \textbf{OnSuccessListener$<>$} from previous section to get 
 private class PhotoUploadSuccessListener implements OnSuccessListener<UploadTask.TaskSnapshot> {
 	@Override
 	public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-		Task<Uri> downloadUrl = taskSnapshot.getMetadata().getReference().getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+		Task<Uri> downloadUrl = taskSnapshot.getMetadata().getReference().getDownloadUrl()
+				.addOnSuccessListener(new OnSuccessListener<Uri>() {
 			@Override
 			public void onSuccess(final Uri uri) {
 				// Save the URL wherever it is useful
@@ -772,6 +773,7 @@ private class PhotoUploadSuccessListener implements OnSuccessListener<UploadTask
 \end{lstlisting}
 
 \subsection{Read data from Firebase database}
+\label{ValueEventListenerExample}
 Go through a section of the database. For example, finding a given user:
 \lstset{language = Java}
 \begin{lstlisting}
@@ -885,7 +887,7 @@ listView.setAdapter(adapter);
 \end{lstlisting}
 
 \subsection{Identified listeners (vs anonymous listeners)}
-Until now, we were getting data from Firebase by using an anonymous implementation of ValueEventListener, which does not have a name and lets you to declare and instantiate a class at the same time and use it only once. This is how it looked:
+Until now, we were getting data from Firebase by using an anonymous implementation of ValueEventListener, which does not have a name and lets you to declare and instantiate a class at the same time and use it only once. This is how it looked (check section \ref{ValueEventListenerExample}):
 \begin{lstlisting}
 someRef.addValueEventListener(new ValueEventListener() {
     // Some methods to override
@@ -1077,7 +1079,8 @@ case BuildConfig.W_heart_rate_path:
     break;
 \end{lstlisting}
 
-\subsection{Showing data on the tablet}
+\subsection{Showing data on the tablet - From Broadcast Manager}
+\label{broadcast}
 First, to get the intent extras in the activit'y onCreate(), to be able to access the specific branch:
 \begin{lstlisting}
 Intent intentFromRec = getIntent();
@@ -1136,16 +1139,184 @@ To add the plot in the layout:
     app:layout_constraintTop_toBottomOf="@+id/gpsMap"
     app:lineLabels="left" />
 \end{lstlisting}
-Then, in onCreate() of the activity, we initiante the XYPlot:
+Then, in onCreate() of the activity, we initiate the XY-Plot:
 \begin{lstlisting}
 heartRatePlot = findViewById(R.id.HRplot);
 configurePlot();
 \end{lstlisting}
 Then we have to configure the plot (colors, styling, axis formatting) in a private method we call after initiating the XYPlot:
 \begin{lstlisting}
-
+private void configurePlot() {
+        // Get background color from Theme
+        TypedValue typedValue = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.windowBackground,
+                typedValue, true);
+        int backgroundColor = typedValue.data;
+        // Set background colors
+        heartRatePlot.setPlotMargins(0, 0, 0, 0);
+        heartRatePlot.getBorderPaint().setColor(backgroundColor);
+        heartRatePlot.getBackgroundPaint().setColor(backgroundColor);
+        heartRatePlot.getGraph().getBackgroundPaint().setColor(backgroundColor);
+        heartRatePlot.getGraph().getGridBackgroundPaint().setColor
+                (backgroundColor);
+        // Set the grid color
+        heartRatePlot.getGraph().getRangeGridLinePaint().setColor(Color.DKGRAY);
+        heartRatePlot.getGraph().getDomainGridLinePaint().setColor(Color
+                .DKGRAY);
+        // Set the origin axes colors
+        heartRatePlot.getGraph().getRangeOriginLinePaint().setColor(Color
+                .DKGRAY);
+        heartRatePlot.getGraph().getDomainOriginLinePaint().setColor(Color
+                .DKGRAY);
+        // Set the XY axis boundaries and step values
+        heartRatePlot.setRangeBoundaries(MIN_HR, MAX_HR, BoundaryMode.FIXED);
+        heartRatePlot.setDomainBoundaries(0, NUMBER_OF_POINTS - 1,
+                BoundaryMode.FIXED);
+        heartRatePlot.setRangeStepValue(9); // 9 values 40 60 ... 200
+        heartRatePlot.getGraph().getLineLabelStyle(XYGraphWidget.Edge.LEFT)
+                .setFormat(new
+                DecimalFormat("#")); // Force the Axis to be integer
+        heartRatePlot.setRangeLabel(getString(R.string.heart_rate));
+	}
 \end{lstlisting}
-We are using here a String value "heart\_ rate " which does not yet exist, so let’s add it in the res/values/strings.xml file, giving it the value Heart Rate (bpm). We also are using the integer constants 'MIN\_HR', 'MAX\_HR' and 'NUMBER\_OF\_POINTS' which we need to define in the class. We will give them the respective values 40, 200 and 50
+We are using here a String value "heart\_rate " which does not yet exist, so let’s add it in the res/values/strings.xml file, giving it the value Heart Rate (bpm). We also are using the integer constants 'MIN\_HR', 'MAX\_HR' and 'NUMBER\_OF\_POINTS' which we need to define in the class. We will give them the respective values 40, 200 and 50
 
+\subsection{Create XY time series for live plots}
+\label{TimeSeries}
+The following class can be implemented to assemble data that has to be displayed. 
+\begin{lstlisting}
+import com.androidplot.xy.LineAndPointFormatter;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class XYplotSeriesList {
+    private ArrayList<Integer[]> xList = new ArrayList<>();
+    private ArrayList<Integer[]> yList = new ArrayList<>();
+    private ArrayList<List<Number>> xyList = new ArrayList<>();
+    private ArrayList<String> xyTagList = new ArrayList<>();
+    private ArrayList<LineAndPointFormatter> xyFormatterList = new ArrayList<>();
+
+    public void initializeSeriesAndAddToList(String xyTag, int CONSTANT, int NUMBER_OF_POINTS,
+                                             LineAndPointFormatter xyFormatter) {
+        Integer[] x = new Integer[NUMBER_OF_POINTS];
+        Integer[] y = new Integer[NUMBER_OF_POINTS];
+        List<Number> xy = new ArrayList<>();
+        for (int i = 0; i < y.length; i += 1) {
+            x[i] = i;
+            y[i] = CONSTANT;
+            xy.add(x[i]);
+            xy.add(y[i]);
+        }
+        xList.add(x);
+        yList.add(y);
+        xyList.add(xy);
+        xyTagList.add(xyTag);
+        xyFormatterList.add(xyFormatter);
+    }
+
+    public List<Number> getSeriesFromList(String xyTag) {
+        return xyList.get(xyTagList.indexOf(xyTag));
+    }
+
+    public LineAndPointFormatter getFormatterFromList(String xyTag) {
+        return xyFormatterList.get(xyTagList.indexOf(xyTag));
+    }
+
+    public void updateSeries(String xyTag, int data) {
+        List<Number> xy = xyList.get(xyTagList.indexOf(xyTag));
+        Integer[] x = xList.get(xyTagList.indexOf(xyTag));
+        Integer[] y = yList.get(xyTagList.indexOf(xyTag));
+
+        xy.clear();
+        for (int i = 0; i < y.length - 1; i += 1) {
+            y[i] = y[i + 1];
+            xy.add(x[i]);
+            xy.add(y[i]);
+        }
+        y[y.length - 1] = data;
+        xy.add(x[y.length - 1]);
+        xy.add(y[y.length - 1]);
+
+        xyList.set(xyTagList.indexOf(xyTag), xy);
+        xList.set(xyTagList.indexOf(xyTag), x);
+        yList.set(xyTagList.indexOf(xyTag), y);
+    }
+
+}
+\end{lstlisting}
+
+\subsection{Initialise the XY plot}
+In the onCreate() method of the activity containing the plot, instantiate the series List and initialise the plot: 
+\begin{lstlisting}
+		// Android Plot
+        heartRatePlot = findViewById(R.id.HRplot);
+        configurePlot();
+
+        // Initialize plot
+        xyPlotSeriesList = new XYplotSeriesList();
+        LineAndPointFormatter formatter = new LineAndPointFormatter(RED,
+                TRANSPARENT,
+                TRANSPARENT, null);
+        formatter.getLinePaint().setStrokeWidth(8);
+        xyPlotSeriesList.initializeSeriesAndAddToList(HR_PLOT_WATCH, MIN_HR,
+                NUMBER_OF_POINTS,
+                formatter);
+        XYSeries HRseries = new SimpleXYSeries(xyPlotSeriesList
+                .getSeriesFromList(HR_PLOT_WATCH),
+                SimpleXYSeries.ArrayFormat.XY_VALS_INTERLEAVED, HR_PLOT_WATCH);
+        heartRatePlot.clear();
+        heartRatePlot.addSeries(HRseries, formatter);
+        heartRatePlot.redraw();
+\end{lstlisting}
+
+\subsection{Draw on the graph - With Broadcast Receiver}
+To update the plot with live data, create a broadcast receiver:
+\begin{lstlisting}
+private class HeartRateBroadcastReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // Show HR in a TextView
+            int heartRateWatch = intent.getIntExtra(HEART_RATE, -1);
+            TextView hrTextView = findViewById(R.id.exerciseHRwatchLive);
+            hrTextView.setText(String.valueOf(heartRateWatch));
+
+//            // Add HR value to HR ArrayList
+//            hrDataArrayList.add(heartRateWatch);
+
+            // Update HR plot series
+            xyPlotSeriesList.updateSeries(HR_PLOT_WATCH, heartRateWatch);
+            XYSeries hrWatchSeries = new SimpleXYSeries(xyPlotSeriesList
+                    .getSeriesFromList
+                    (HR_PLOT_WATCH), SimpleXYSeries.ArrayFormat
+                    .XY_VALS_INTERLEAVED, HR_PLOT_WATCH);
+            LineAndPointFormatter formatterPolar = xyPlotSeriesList
+                    .getFormatterFromList
+                    (HR_PLOT_WATCH);
+
+            heartRatePlot.clear();
+            heartRatePlot.addSeries(hrWatchSeries, formatterPolar);
+            heartRatePlot.redraw();
+        }
+    }
+\end{lstlisting}
+The receiver uses the functions declared in section \ref{TimeSeries}. The broadcast receiver is an attribute of the class and is registered in the onResume() method (check section \ref{broadcast} for details). 
+
+
+\section{GPS localisation data}
+\subsection{Permissions}
+In the AndroidManifest.xml of the wear module:
+\begin{lstlisting}
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+\end{lstlisting}
+Declare also hardware features to be used:
+\begin{lstlisting}
+<uses-feature android:name="android.hardware.location.network" />
+<uses-feature android:name="android.hardware.location.gps" />
+\end{lstlisting}
+
+Stopped at Lab 6, 5.1
 
 \end{document}
