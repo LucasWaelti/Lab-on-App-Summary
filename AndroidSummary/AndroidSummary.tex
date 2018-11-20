@@ -1317,6 +1317,223 @@ Declare also hardware features to be used:
 <uses-feature android:name="android.hardware.location.gps" />
 \end{lstlisting}
 
-Stopped at Lab 6, 5.1
+\subsection{Acess the location sensor}
+First you need to ovrride several callback methods (onProviderEnabled(), onProviderDisabled, onLocationChanged, onStatusChanged()). you can do this with a simple ALT+RETURN.
+
+Then, in the Oncreate() of the activity, implement the following code:
+\begin{lstlisting}
+LocationManager locationManager = (LocationManager)this.getSystemService(
+Context.LOCATION_SERVICE);
+if (locationManager != null) {
+    locationManager.requestLocationUpdates(
+    LocationManager.PROVIDER_NAME, 0, 0, this);
+}
+\end{lstlisting}
+
+\subsection{Retrieve the user location}
+To get the location data from the LocationListener, change the onLocationChanged() method:
+\begin{lstlisting}
+longitude = location.getLongitude();
+latitude = location.getLatitude();
+TextView textViewGPS = findViewById(R.id.Location);
+if (textViewGPS != null)
+    textViewGPS.setText(”Lat: ” +
+        latitude + ”\nLon: ” + longitude);
+\end{lstlisting}
+The longitude and latitude variables should be defined as private field members in the class, here the default values are the coordinates of Lausanne:
+\begin{lstlisting}
+private double longitude = 46.5197;
+private double latitude = 6.6323;
+\end{lstlisting}
+
+\section{Display the location data on the tablet}
+\subsection{Send location data to the tablet}
+To send the location data to the tablet, we need to start the WearService using an intent from the onLocationChanged().
+\begin{lstlisting}
+@Override
+public void onLocationChanged(Location location) {
+    ...
+    Intent intent = new Intent(RecordingActivity.this, WearService.class);
+    intent.setAction(WearService.ACTION_SEND.LOCATION.name());
+    intent.putExtra(WearService.DATAMAP_INT_LONGITUDE, longitude);
+    intent.putExtra(WearService.DATAMAP_INT_LATITUDE, latitude);
+    startService(intent);
+}
+\end{lstlisting}
+In the WearService.java of the wear module, we send the data to the tablet when the WearService is started:
+\begin{lstlisting}
+@Override
+public int onStartCommand(Intent intent, int flags, int startId) {
+    super.onStartCommand(intent, flags, startId);
+    ...
+    switch (action) {
+    ....
+    case LOCATION:
+        putDataMapRequest = PutDataMapRequest.create(BuildConfig
+            .W_location_path);
+        putDataMapRequest.getDataMap().putDouble(BuildConfig
+            .W_latitude_key, intent.getDoubleExtra
+        (DATAMAP_INT_LATITUDE, -1));
+        putDataMapRequest.getDataMap().putDouble(BuildConfig
+            .W_longitude_key, intent.getDoubleExtra
+                (DATAMAP_INT_LONGITUDE, -1));
+        sendPutDataMapRequest(putDataMapRequest);
+        break;
+    ...
+    }
+}
+\end{lstlisting}
+\subsection{Receive the location data in the tablet}
+In the mobile WearService.java, update the onDataChanged() method to implement the necessary actions in case of a location change, mainly to send the location values to the ExerciceLiveActivity via an intent:
+\begin{lstlisting}
+@Override
+public void onDataChanged(DataEventBuffer dataEvents) {
+    ...
+    for (DataEvent event : dataEvents) {
+        // Get the URI of the event
+        Uri uri = event.getDataItem().getUri();
+        // Test if data has changed or has been removed
+        if (event.getType() == DataEvent.TYPE_CHANGED) {
+            ...
+            assert uri.getPath() != null;
+            switch (uri.getPath()) {
+                for (DataEvent event : dataEvents) {
+                ....
+                case BuildConfig.W_location_path:
+                double longitude = dataMapItem.getDataMap().getDouble
+                    (BuildConfig.W_longitude_key);
+                double latitude = dataMapItem.getDataMap().getDouble
+                    (BuildConfig.W_latitude_key);
+                intent = new Intent(ExerciseLiveActivity
+                    .ACTION_RECEIVE_LOCATION);
+                intent.putExtra(ExerciseLiveActivity.LONGITUDE,
+                    longitude);
+                intent.putExtra(ExerciseLiveActivity.LATITUDE,
+                    latitude);
+                LocalBroadcastManager.getInstance(this).sendBroadcast
+                    (intent);
+                ...
+            } ...
+        } ...
+    }
+}
+\end{lstlisting}
+Now, in the ExerciceLiveActivity, we need to register the Receiver for the location the location data in the onCreate(). Also create two TextViews in the layout if ExcerciceLiveActivity and update them with the received position.
+\begin{lstlisting}
+private LocationBroadcastReceiver locationBroadcastReceiver;
+
+private double longitudeWatch = 46.5197;
+private double latitudeWatch = 6.6323;
+
+@Override
+protected void onResume() {
+    super.onResume();
+    ...
+    // Get the location data back from the watch
+    locationBroadcastReceiver = new LocationBroadcastReceiver();
+    LocalBroadcastManager.getInstance(this).registerReceiver
+        (locationBroadcastReceiver, new IntentFilter
+            (ACTION_RECEIVE_LOCATION));
+}
+
+@Override
+protected void onPause() {
+    ...
+    LocalBroadcastManager.getInstance(this).unregisterReceiver
+        (locationBroadcastReceiver);
+}
+
+...
+
+private class LocationBroadcastReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        // Show Location in a TextView
+        longitudeWatch = intent.getDoubleExtra(LONGITUDE, -1);
+        latitudeWatch = intent.getDoubleExtra(LATITUDE, -1);
+        TextView longitudeTextView = findViewById(R.id.longitudeWatchValue);
+        longitudeTextView.setText(String.valueOf(longitudeWatch));
+        TextView latitudeTextView = findViewById(R.id.latitudeWatchValue);
+        latitudeTextView.setText(String.valueOf(latitudeWatch));
+    }
+}
+\end{lstlisting}
+
+\section{Display the live location on GoogleMaps}
+First you need to add a MapsActivity to the tablet module. Right-click on the tablet module, then click NewActivity to Gallery to GoogleMapsActivity.
+You need to put a Google API key in the google\_maps\_api.xml, the instructions how to create a key are available here \url{https://developers.google.com/maps/documentation/android-api/signup}.
+We want to display the map in the ExerciceLiveActivity, so we wil implement some of the functionalities of MapsActivity there, like implementing the OnMapReadyCallback, crerating a privateGoogleMaps instance, and optaining the reference to the map Fragment in the layout:
+\begin{lstlisting}
+public class ExerciseLiveActivity extends AppCompatActivity
+    implements OnMapReadyCallback {
+...
+
+private GoogleMap mMap;
+
+@Override
+    protected void onCreate(Bundle savedInstanceState) {
+        ...
+        // Obtain the SupportMapFragment and get notified
+        // when the map is ready to be used.
+        SupportMapFragment mapFragment = (SupportMapFragment)
+            getSupportFragmentManager()
+                .findFragmentById(R.id.GoogleMap);
+        mapFragment.getMapAsync(this);
+        ...
+    }
+\end{lstlisting}
+
+Add the Fragment from activity\_maps.xml in activity\_exercice\_live.xml, which you can put inside a FrameLayout:
+\begin{lstlisting}
+<FrameLayout
+android:id=”@+id/MapFrame”
+android:layout_width=””
+android:layout_height=””
+>
+<fragment xmlns:android=”http://schemas.android.com/apk/res/android”
+xmlns:map=”http://schemas.android.com/apk/res-auto”
+xmlns:tools=”http://schemas.android.com/tools”
+android:id=”@+id/GoogleMap”
+android:name=”com.google.android.gms.maps.SupportMapFragment”
+android:layout\_width=”match\_parent”
+android:layout\_height=”match\_parent”/>
+</FrameLayout>
+\end{lstlisting}
+
+To display the initial position in the map, you will need to override the onMapReady() method:
+\begin{lstlisting}
+@Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+        // Add a marker in the default location and move the camera
+        LatLng currentLocation = new LatLng(latitudeWatch, longitudeWatch);
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 15));
+        mMap.addMarker(new MarkerOptions().position(currentLocation)
+        .title(”Current Location”));
+        TextView longitudeTextView = findViewById(R.id.longitudeWatchValue);
+        longitudeTextView.setText(String.valueOf(longitudeWatch));
+        TextView latitudeTextView = findViewById(R.id.latitudeWatchValue);
+        latitudeTextView.setText(String.valueOf(latitudeWatch));
+    }
+\end{lstlisting}
+
+You can also update the location in the map whenever a new location is received, in the
+location BroadcastReceiver by adding the following:
+\begin{lstlisting}
+//Update GoogleMaps location
+LatLng currentLocation = new LatLng(latitudeWatch, longitudeWatch);
+mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation,15));
+mMap.addMarker(new MarkerOptions().position(currentLocation)
+    .title(”Current Location”));
+\end{lstlisting}
+The newLatLngZoom(..) method allows to set a zoom level (we chose 10 in this example).
+The following list gives you an idea of what level of detail each level of zoom shows:
+\begin{itemize}
+    \item 1: World
+    \item 5: Landmass/continent
+    \item 10: City
+    \item 15: Streets
+    \item 20: Buildings
+\end{itemize}
 
 \end{document}
